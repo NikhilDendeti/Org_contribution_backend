@@ -2,6 +2,8 @@
 from datetime import date
 from decimal import Decimal
 from django.db import transaction
+from django.conf import settings
+from pathlib import Path
 from contributions.services import file_parser_service
 from contributions.services import file_storage_service
 from contributions.services.file_parser_service import normalize_month
@@ -22,16 +24,32 @@ class UploadContributionFileInteractor:
     
     def execute(self) -> dict:
         """Execute the upload and parsing process."""
-        # Save file
-        storage_path, file_size, checksum = file_storage_service.save_uploaded_file(self.file)
-        from django.conf import settings
-        from pathlib import Path
-        full_path = Path(settings.MEDIA_ROOT) / storage_path
-        
-        # Get file name for raw_file record
-        file_name = getattr(self.file, 'name', 'uploaded_file.xlsx')
-        if not file_name:
-            file_name = 'uploaded_file.xlsx'
+        # Check if file is a path string (for management commands)
+        if isinstance(self.file, str):
+            full_path = Path(self.file)
+            if not full_path.is_absolute():
+                full_path = Path(settings.BASE_DIR) / full_path
+            
+            # Calculate storage path relative to MEDIA_ROOT
+            try:
+                storage_path = str(full_path.relative_to(Path(settings.MEDIA_ROOT)))
+            except ValueError:
+                # File is outside MEDIA_ROOT, use filename in uploads directory
+                storage_path = f"uploads/{full_path.name}"
+            
+            file_size = full_path.stat().st_size
+            import hashlib
+            with open(full_path, 'rb') as f:
+                checksum = hashlib.md5(f.read()).hexdigest()
+            file_name = full_path.name
+        else:
+            # Save uploaded file
+            storage_path, file_size, checksum = file_storage_service.save_uploaded_file(self.file)
+            full_path = Path(settings.MEDIA_ROOT) / storage_path
+            # Get file name for raw_file record
+            file_name = getattr(self.file, 'name', 'uploaded_file.xlsx')
+            if not file_name:
+                file_name = 'uploaded_file.xlsx'
         
         # Parse file
         parsed_rows, errors = file_parser_service.parse_excel_file(str(full_path))

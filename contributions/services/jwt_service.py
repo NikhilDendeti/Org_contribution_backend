@@ -14,11 +14,15 @@ def generate_tokens(employee_id: int) -> dict:
         refresh['employee_id'] = employee.id
         refresh['employee_code'] = employee.employee_code
         refresh['role'] = employee.role
+        refresh['department_id'] = employee.department_id
+        refresh['pod_id'] = employee.pod_id
         
         access_token = refresh.access_token
         access_token['employee_id'] = employee.id
         access_token['employee_code'] = employee.employee_code
         access_token['role'] = employee.role
+        access_token['department_id'] = employee.department_id
+        access_token['pod_id'] = employee.pod_id
         
         return {
             'refresh': str(refresh),

@@ -31,6 +31,8 @@ servers:
 tags:
   - name: Authentication
     description: JWT token generation and refresh
+  - name: User Profile
+    description: Current user information
   - name: Uploads
     description: File upload and management
   - name: Dashboards
@@ -128,6 +130,73 @@ paths:
                 properties:
                   access:
                     type: string
+
+  /me/:
+    get:
+      tags:
+        - User Profile
+      summary: Get current user profile
+      description: |
+        Get the current authenticated user's profile information including department_id and pod_id.
+        Useful for frontend to automatically determine which dashboard to show.
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 2
+                      employee_code:
+                        type: string
+                        example: "HOD001"
+                      name:
+                        type: string
+                        example: "Tech HOD"
+                      email:
+                        type: string
+                        example: "tech_hod@example.com"
+                      role:
+                        type: string
+                        enum: [CEO, HOD, POD_LEAD, EMPLOYEE, ADMIN]
+                        example: "HOD"
+                      department_id:
+                        type: integer
+                        nullable: true
+                        example: 1
+                      department_name:
+                        type: string
+                        nullable: true
+                        example: "Tech"
+                      pod_id:
+                        type: integer
+                        nullable: true
+                        example: 13
+                      pod_name:
+                        type: string
+                        nullable: true
+                        example: "Tech Pod"
+                  message:
+                    type: string
+                    example: "Success"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /uploads/csv/:
     post:
@@ -383,16 +452,66 @@ paths:
                               format: float
                       top_pods:
                         type: array
+                        description: Top contributing pods with department information (for "Top Teams" table)
                         items:
                           type: object
                           properties:
                             pod_id:
                               type: integer
+                              example: 1
                             pod_name:
                               type: string
+                              example: "Platform Pod"
+                            department_id:
+                              type: integer
+                              example: 1
+                            department_name:
+                              type: string
+                              example: "Tech"
                             hours:
                               type: number
                               format: float
+                              example: 4600.0
+                            percent:
+                              type: number
+                              format: float
+                              description: Percentage of total organization hours
+                              example: 8.33
+                      department_breakdown:
+                        type: array
+                        description: Hours by product across departments (for chart visualization)
+                        items:
+                          type: object
+                          properties:
+                            department_id:
+                              type: integer
+                              example: 1
+                            department_name:
+                              type: string
+                              example: "Tech"
+                            total_hours:
+                              type: number
+                              format: float
+                              example: 18400.0
+                            products:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  product_id:
+                                    type: integer
+                                    example: 1
+                                  product_name:
+                                    type: string
+                                    example: "Academy"
+                                  hours:
+                                    type: number
+                                    format: float
+                                    example: 4416.0
+                                  percent:
+                                    type: number
+                                    format: float
+                                    example: 24.0
         '400':
           description: Bad request
         '403':

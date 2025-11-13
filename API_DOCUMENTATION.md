@@ -4,7 +4,7 @@ Complete API reference for Organization Contributions Backend.
 
 ## Base URL
 
-- Development: `http://localhost:8000/api`
+- Development: `http://localhost:8001/api` (or `http://localhost:8000/api` depending on your Django runserver port)
 - Production: `https://api.example.com/api`
 
 ## Authentication
@@ -59,6 +59,50 @@ Content-Type: application/json
   "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+  },
+  "message": "Token refreshed successfully"
+}
+```
+
+**Note:** The JWT access token includes the following claims:
+- `employee_id`: Employee database ID
+- `employee_code`: Employee code (e.g., "HOD001")
+- `role`: Employee role (CEO, HOD, POD_LEAD, EMPLOYEE, ADMIN)
+- `department_id`: Department ID (null for CEO)
+- `pod_id`: Pod ID (null if not assigned)
+
+#### Get Current User Profile
+```http
+GET /api/me/
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "employee_code": "HOD001",
+    "name": "Tech HOD",
+    "email": "tech_hod@example.com",
+    "role": "HOD",
+    "department_id": 1,
+    "department_name": "Tech",
+    "pod_id": 13,
+    "pod_name": "Tech Pod"
+  }
+}
+```
+
+**Use Case:** Frontend can use this endpoint to get the current user's `department_id` to automatically navigate to the correct department dashboard.
 
 ### 2. File Uploads
 
@@ -169,12 +213,85 @@ Authorization: Bearer <token>
       {
         "pod_id": 1,
         "pod_name": "Platform Pod",
-        "hours": 1500.00
+        "department_id": 1,
+        "department_name": "Tech",
+        "hours": 4600.0,
+        "percent": 8.33
+      },
+      {
+        "pod_id": 2,
+        "pod_name": "Infra Pod",
+        "department_id": 1,
+        "department_name": "Tech",
+        "hours": 4600.0,
+        "percent": 8.33
+      },
+      {
+        "pod_id": 5,
+        "pod_name": "Accounts",
+        "department_id": 2,
+        "department_name": "Finance",
+        "hours": 4600.0,
+        "percent": 8.33
+      }
+    ],
+    "department_breakdown": [
+      {
+        "department_id": 1,
+        "department_name": "Tech",
+        "total_hours": 18400.0,
+        "products": [
+          {
+            "product_id": 1,
+            "product_name": "Academy",
+            "hours": 4416.0,
+            "percent": 24.0
+          },
+          {
+            "product_id": 2,
+            "product_name": "Intensive",
+            "hours": 7360.0,
+            "percent": 40.0
+          },
+          {
+            "product_id": 3,
+            "product_name": "NIAT",
+            "hours": 6624.0,
+            "percent": 36.0
+          }
+        ]
+      },
+      {
+        "department_id": 2,
+        "department_name": "Finance",
+        "total_hours": 9200.0,
+        "products": [
+          {
+            "product_id": 1,
+            "product_name": "Academy",
+            "hours": 2208.0,
+            "percent": 24.0
+          },
+          {
+            "product_id": 2,
+            "product_name": "Intensive",
+            "hours": 3680.0,
+            "percent": 40.0
+          },
+          {
+            "product_id": 3,
+            "product_name": "NIAT",
+            "hours": 3312.0,
+            "percent": 36.0
+          }
+        ]
       }
     ]
   }
 }
 ```
+
+**Note:** The `department_breakdown` field provides hours by product across all departments, perfect for creating stacked bar charts showing product distribution per department.
 
 #### Department Dashboard
 ```http
@@ -376,7 +493,9 @@ All errors follow this format:
 - `PERMISSION_DENIED` - Insufficient permissions (403)
 - `VALIDATION_ERROR` - Validation failed (400)
 - `INVALID_FILE_FORMAT` - Invalid file format (400)
-- `AUTHENTICATION_FAILED` - Authentication failed (401)
+- `DUPLICATE_UPLOAD` - File already uploaded (400)
+- `DOMAIN_ERROR` - General domain error (400)
+- `UPLOAD_ERROR` - File upload error (400)
 
 ## Rate Limiting
 
@@ -384,9 +503,7 @@ Currently no rate limiting is implemented. Consider adding rate limiting for pro
 
 ## Pagination
 
-List endpoints support pagination:
-- Default page size: 100
-- Use `?page=1` query parameter
+**Note:** Pagination is currently not implemented. All list endpoints return complete results. Consider implementing pagination for production use if datasets become large.
 
 ## Excel File Format
 

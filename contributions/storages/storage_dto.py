@@ -109,6 +109,15 @@ class ProductBreakdownDTO:
 
 
 @dataclass
+class DepartmentBreakdownDTO:
+    """Department breakdown with product distribution."""
+    department_id: int
+    department_name: str
+    total_hours: Decimal
+    products: List[ProductBreakdownDTO]
+
+
+@dataclass
 class OrgMetricsDTO:
     """Organization-level metrics DTO."""
     month: str
@@ -116,6 +125,7 @@ class OrgMetricsDTO:
     products: List[ProductBreakdownDTO]
     top_departments: List[Dict]
     top_pods: List[Dict]
+    department_breakdown: List[DepartmentBreakdownDTO]
 
 
 @dataclass

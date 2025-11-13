@@ -6,7 +6,8 @@ from django.db.models import Sum
 from contributions.models import ContributionRecord
 from contributions.storages.storage_dto import (
     OrgMetricsDTO, DepartmentMetricsDTO, PodMetricsDTO, EmployeeMetricsDTO,
-    ProductBreakdownDTO, PodBreakdownDTO, EmployeeBreakdownDTO, FeatureBreakdownDTO
+    ProductBreakdownDTO, PodBreakdownDTO, EmployeeBreakdownDTO, FeatureBreakdownDTO,
+    DepartmentBreakdownDTO
 )
 from contributions.storages import contribution_storage
 
@@ -96,10 +97,10 @@ def calculate_org_metrics(month: date) -> OrgMetricsDTO:
         for agg in dept_aggregates
     ]
     
-    # Get top pods
+    # Get top pods with department information and percentage
     pod_aggregates = ContributionRecord.objects.filter(
         contribution_month=month
-    ).values('pod_id', 'pod__name').annotate(
+    ).values('pod_id', 'pod__name', 'department_id', 'department__name').annotate(
         hours=Sum('effort_hours')
     ).order_by('-hours')[:10]
     
@@ -107,10 +108,94 @@ def calculate_org_metrics(month: date) -> OrgMetricsDTO:
         {
             'pod_id': agg['pod_id'],
             'pod_name': agg['pod__name'],
+            'department_id': agg['department_id'],
+            'department_name': agg['department__name'],
             'hours': float(agg['hours'] or 0),
+            'percent': float((Decimal(str(agg['hours'] or 0)) / total_hours * Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)),
         }
         for agg in pod_aggregates
     ]
+    
+    # Calculate department breakdown with product distribution
+    # Get all departments with their product breakdowns
+    dept_product_aggregates = ContributionRecord.objects.filter(
+        contribution_month=month
+    ).values('department_id', 'department__name', 'product_id', 'product__name').annotate(
+        hours=Sum('effort_hours')
+    ).order_by('department_id', 'product_id')
+    
+    # Group by department
+    department_breakdowns = []
+    current_dept_id = None
+    current_dept_name = None
+    current_dept_products = []
+    current_dept_total = Decimal('0')
+    
+    for agg in dept_product_aggregates:
+        dept_id = agg['department_id']
+        dept_name = agg['department__name']
+        product_id = agg['product_id']
+        product_name = agg['product__name']
+        hours = Decimal(str(agg['hours'] or 0))
+        
+        if current_dept_id is None or current_dept_id != dept_id:
+            # Save previous department if exists
+            if current_dept_id is not None:
+                # Calculate percentages for this department's products
+                dept_products_with_percent = calculate_percentages(
+                    current_dept_products, current_dept_total
+                )
+                department_breakdowns.append(
+                    DepartmentBreakdownDTO(
+                        department_id=current_dept_id,
+                        department_name=current_dept_name,
+                        total_hours=current_dept_total,
+                        products=[
+                            ProductBreakdownDTO(
+                                product_id=item['product_id'],
+                                product_name=item['product_name'],
+                                hours=item['hours'],
+                                percent=item['percent'],
+                            )
+                            for item in dept_products_with_percent
+                        ],
+                    )
+                )
+            
+            # Start new department
+            current_dept_id = dept_id
+            current_dept_name = dept_name
+            current_dept_products = []
+            current_dept_total = Decimal('0')
+        
+        current_dept_products.append({
+            'product_id': product_id,
+            'product_name': product_name,
+            'hours': hours,
+        })
+        current_dept_total += hours
+    
+    # Don't forget the last department
+    if current_dept_id is not None:
+        dept_products_with_percent = calculate_percentages(
+            current_dept_products, current_dept_total
+        )
+        department_breakdowns.append(
+            DepartmentBreakdownDTO(
+                department_id=current_dept_id,
+                department_name=current_dept_name,
+                total_hours=current_dept_total,
+                products=[
+                    ProductBreakdownDTO(
+                        product_id=item['product_id'],
+                        product_name=item['product_name'],
+                        hours=item['hours'],
+                        percent=item['percent'],
+                    )
+                    for item in dept_products_with_percent
+                ],
+            )
+        )
     
     return OrgMetricsDTO(
         month=month.strftime('%Y-%m'),
@@ -118,6 +203,7 @@ def calculate_org_metrics(month: date) -> OrgMetricsDTO:
         products=product_breakdowns,
         top_departments=top_departments,
         top_pods=top_pods,
+        department_breakdown=department_breakdowns,
     )
 
 

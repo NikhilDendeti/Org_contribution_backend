@@ -22,18 +22,20 @@ class GetOrgMetricsInteractor:
             raise ValidationException(f"Invalid month format: {self.month}. Expected YYYY-MM")
         
         # Check CEO permission with better error message
-        try:
-            permission_service.check_ceo_permission(self.employee_id)
-        except PermissionDeniedException as e:
-            # Add employee info to error for debugging
-            from contributions.storages import employee_storage
-            try:
-                employee = employee_storage.get_employee_by_id(self.employee_id)
-                raise PermissionDeniedException(
-                    f"CEO access required. Current user: {employee.employee_code} (Role: {employee.role})"
-                )
-            except:
-                raise e
+        from contributions.storages import employee_storage
+        employee = employee_storage.get_employee_by_id(self.employee_id)
+        
+        if employee.role != 'CEO':
+            # Provide helpful guidance based on role
+            if employee.role == 'POD_LEAD':
+                guidance = f" Use /api/pods/{employee.pod_id}/contributions/?month={self.month} to access your pod dashboard."
+            elif employee.role == 'HOD':
+                guidance = f" Use /api/dashboards/department/{employee.department_id}/?month={self.month} to access your department dashboard."
+            else:
+                guidance = ""
+            raise PermissionDeniedException(
+                f"Organization dashboard requires CEO access. Current user: {employee.employee_code} (Role: {employee.role}).{guidance}"
+            )
         
         # Calculate metrics
         return metrics_calculator_service.calculate_org_metrics(month_date)

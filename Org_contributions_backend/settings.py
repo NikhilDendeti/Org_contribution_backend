@@ -158,12 +158,15 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# Allow all origins in development (restrict in production)
+CORS_ALLOW_ALL_ORIGINS = True  # Set to False in production
 
+# Or specify allowed origins (alternative to CORS_ALLOW_ALL_ORIGINS)
+ALLOWED_HOSTS = ["*"]
+
+# Allow credentials (cookies, authorization headers)
 CORS_ALLOW_CREDENTIALS = True
+
 
 # Logging configuration
 LOGGING = {

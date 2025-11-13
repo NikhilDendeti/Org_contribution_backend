@@ -20,6 +20,23 @@ def present_org_metrics(metrics: OrgMetricsDTO) -> dict:
         ],
         'top_departments': metrics.top_departments,
         'top_pods': metrics.top_pods,
+        'department_breakdown': [
+            {
+                'department_id': d.department_id,
+                'department_name': d.department_name,
+                'total_hours': float(d.total_hours),
+                'products': [
+                    {
+                        'product_id': p.product_id,
+                        'product_name': p.product_name,
+                        'hours': float(p.hours),
+                        'percent': float(p.percent),
+                    }
+                    for p in d.products
+                ],
+            }
+            for d in metrics.department_breakdown
+        ],
     }
 
 

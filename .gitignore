@@ -9,3 +9,12 @@ __pycache__/
 *.pyc
 *.pyo
 
+# LibreOffice/OpenOffice lock files
+.~lock.*
+*~
+
+# Media files (uploaded files)
+media/uploads/
+media/*.csv
+media/*.xlsx
+

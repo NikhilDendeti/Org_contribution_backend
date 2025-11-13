@@ -82,7 +82,13 @@ def parse_excel_file(file_path: str) -> Tuple[List[Dict], List[Dict]]:
             # Handle Excel file
             excel_file = pd.ExcelFile(file_path)
             
-            for sheet_name in excel_file.sheet_names:
+            # Skip "Master" sheet if it exists (it's usually a summary)
+            sheets_to_process = [s for s in excel_file.sheet_names if s.lower() != 'master']
+            if not sheets_to_process:
+                # If only Master sheet exists, process it anyway
+                sheets_to_process = excel_file.sheet_names
+            
+            for sheet_name in sheets_to_process:
                 df = pd.read_excel(excel_file, sheet_name=sheet_name)
                 
                 # Validate headers

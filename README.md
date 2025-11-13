@@ -97,6 +97,36 @@ The system expects Excel files with the following columns:
 
 Multiple sheets are supported (each sheet typically represents a department).
 
+## Load Default CSV Data
+
+Instead of uploading files every time, you can load the default CSV file that's already in the project:
+
+```bash
+python manage.py load_default_csv
+```
+
+This will:
+- Find the most recent CSV file in `media/uploads/`
+- Load all contribution data from it
+- Create employees, departments, pods, products, and features as needed
+
+Options:
+- `--file FILE`: Specify a specific CSV file (relative to media/uploads/)
+- `--uploaded-by CODE`: Employee code of uploader (default: CEO001)
+- `--force`: Force reload even if data already exists
+
+Example:
+```bash
+# Load default CSV
+python manage.py load_default_csv
+
+# Load specific file
+python manage.py load_default_csv --file 20251113_100953_675864_organization_contributions_2025-10.csv
+
+# Force reload
+python manage.py load_default_csv --force
+```
+
 ## Management Commands
 
 - `python manage.py seed_products` - Create initial products
