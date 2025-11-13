@@ -1,0 +1,775 @@
+openapi: 3.0.3
+info:
+  title: Organization Contributions API
+  description: |
+    REST API for tracking monthly employee contributions across products (Academy, Intensive, NIAT).
+    
+    ## Authentication
+    All endpoints (except token generation) require JWT authentication. Include the access token in the Authorization header:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    
+    ## Roles
+    - **CEO**: Can access organization-wide dashboards
+    - **HOD**: Can upload files and access department dashboards
+    - **Pod Lead**: Can access pod-level dashboards
+    - **Employee**: Can access own contribution data
+    - **Admin**: Full access
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+  - url: https://api.example.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: JWT token generation and refresh
+  - name: Uploads
+    description: File upload and management
+  - name: Dashboards
+    description: Metrics and dashboard data
+  - name: Entities
+    description: Products and features
+
+paths:
+  /token/:
+    post:
+      tags:
+        - Authentication
+      summary: Get JWT tokens
+      description: Generate access and refresh tokens using employee_code
+      operationId: getToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - employee_code
+              properties:
+                employee_code:
+                  type: string
+                  example: "EMP001"
+            examples:
+              ceo:
+                value:
+                  employee_code: "CEO001"
+              hod:
+                value:
+                  employee_code: "HOD001"
+              pod_lead:
+                value:
+                  employee_code: "PL001"
+              employee:
+                value:
+                  employee_code: "EMP001"
+      responses:
+        '200':
+          description: Tokens generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      access:
+                        type: string
+                        example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                      refresh:
+                        type: string
+                        example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                  message:
+                    type: string
+                    example: "Tokens generated successfully"
+        '400':
+          description: Bad request
+        '404':
+          description: Employee not found
+
+  /token/refresh/:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Get a new access token using refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh
+              properties:
+                refresh:
+                  type: string
+                  example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access:
+                    type: string
+
+  /uploads/csv/:
+    post:
+      tags:
+        - Uploads
+      summary: Upload contribution file
+      description: Upload Excel/CSV file with monthly contributions. Requires HOD, Admin, or CEO role.
+      operationId: uploadFile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel (.xlsx) or CSV file
+      responses:
+        '200':
+          description: File uploaded and parsed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      raw_file_id:
+                        type: integer
+                        example: 1
+                      summary:
+                        type: object
+                        properties:
+                          total_rows:
+                            type: integer
+                            example: 100
+                          created_records:
+                            type: integer
+                            example: 95
+                          created_employees:
+                            type: integer
+                            example: 20
+                          created_departments:
+                            type: integer
+                            example: 3
+                          created_pods:
+                            type: integer
+                            example: 5
+                          created_products:
+                            type: integer
+                            example: 3
+                          created_features:
+                            type: integer
+                            example: 15
+                          error_count:
+                            type: integer
+                            example: 5
+                      errors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            sheet:
+                              type: string
+                            row:
+                              type: integer
+                            field:
+                              type: string
+                            message:
+                              type: string
+                      has_errors:
+                        type: boolean
+                        example: true
+                  message:
+                    type: string
+                    example: "File uploaded successfully"
+        '400':
+          description: Bad request or validation error
+        '403':
+          description: Permission denied
+
+  /uploads/{raw_file_id}/:
+    get:
+      tags:
+        - Uploads
+      summary: Get upload details
+      description: Get details of an uploaded file
+      operationId: getUploadDetails
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: raw_file_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Upload details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      file_name:
+                        type: string
+                      uploaded_by_id:
+                        type: integer
+                      uploaded_at:
+                        type: string
+                        format: date-time
+                      file_size:
+                        type: integer
+                      parse_summary:
+                        type: object
+        '404':
+          description: Upload not found
+
+  /uploads/{raw_file_id}/download/:
+    get:
+      tags:
+        - Uploads
+      summary: Download original file
+      description: Download the originally uploaded file
+      operationId: downloadOriginalFile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: raw_file_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: File download
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+
+  /uploads/{raw_file_id}/errors/:
+    get:
+      tags:
+        - Uploads
+      summary: Download errors CSV
+      description: Download CSV file with parsing errors
+      operationId: downloadErrorsCSV
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: raw_file_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Errors CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Upload not found
+
+  /dashboards/org/:
+    get:
+      tags:
+        - Dashboards
+      summary: Organization dashboard
+      description: Get organization-wide metrics. Requires CEO role.
+      operationId: getOrgDashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+            example: "2025-10"
+          description: Month in YYYY-MM format
+      responses:
+        '200':
+          description: Organization metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      month:
+                        type: string
+                        example: "2025-10"
+                      total_hours:
+                        type: number
+                        format: float
+                        example: 5000.50
+                      products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            product_id:
+                              type: integer
+                            product_name:
+                              type: string
+                            hours:
+                              type: number
+                              format: float
+                            percent:
+                              type: number
+                              format: float
+                      top_departments:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            department_id:
+                              type: integer
+                            department_name:
+                              type: string
+                            hours:
+                              type: number
+                              format: float
+                      top_pods:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            pod_id:
+                              type: integer
+                            pod_name:
+                              type: string
+                            hours:
+                              type: number
+                              format: float
+        '400':
+          description: Bad request
+        '403':
+          description: Permission denied (CEO access required)
+
+  /dashboards/department/{dept_id}/:
+    get:
+      tags:
+        - Dashboards
+      summary: Department dashboard
+      description: Get department-level metrics. Requires HOD role for the department.
+      operationId: getDepartmentDashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dept_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+            example: "2025-10"
+      responses:
+        '200':
+          description: Department metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      department_id:
+                        type: integer
+                      department_name:
+                        type: string
+                      month:
+                        type: string
+                      total_hours:
+                        type: number
+                        format: float
+                      pods:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            pod_id:
+                              type: integer
+                            pod_name:
+                              type: string
+                            total_hours:
+                              type: number
+                              format: float
+                            products:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  product_id:
+                                    type: integer
+                                  product_name:
+                                    type: string
+                                  hours:
+                                    type: number
+                                    format: float
+                                  percent:
+                                    type: number
+                                    format: float
+                      product_distribution:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            product_id:
+                              type: integer
+                            product_name:
+                              type: string
+                            hours:
+                              type: number
+                              format: float
+                            percent:
+                              type: number
+                              format: float
+        '400':
+          description: Bad request
+        '403':
+          description: Permission denied
+
+  /pods/{pod_id}/contributions/:
+    get:
+      tags:
+        - Dashboards
+      summary: Pod contributions
+      description: Get pod-level metrics. Requires Pod Lead role for the pod.
+      operationId: getPodContributions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: pod_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+            example: "2025-10"
+      responses:
+        '200':
+          description: Pod metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      pod_id:
+                        type: integer
+                      pod_name:
+                        type: string
+                      month:
+                        type: string
+                      total_hours:
+                        type: number
+                        format: float
+                      products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            product_id:
+                              type: integer
+                            product_name:
+                              type: string
+                            hours:
+                              type: number
+                              format: float
+                            percent:
+                              type: number
+                              format: float
+                      employees:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            employee_id:
+                              type: integer
+                            employee_code:
+                              type: string
+                            employee_name:
+                              type: string
+                            total_hours:
+                              type: number
+                              format: float
+                            products:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  product_id:
+                                    type: integer
+                                  product_name:
+                                    type: string
+                                  hours:
+                                    type: number
+                                    format: float
+                                  percent:
+                                    type: number
+                                    format: float
+        '400':
+          description: Bad request
+        '403':
+          description: Permission denied
+
+  /employees/{employee_id}/contributions/:
+    get:
+      tags:
+        - Dashboards
+      summary: Employee contributions
+      description: Get employee-level metrics. Employees can only access their own data.
+      operationId: getEmployeeContributions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: employee_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+            example: "2025-10"
+      responses:
+        '200':
+          description: Employee metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      employee_id:
+                        type: integer
+                      employee_code:
+                        type: string
+                      employee_name:
+                        type: string
+                      month:
+                        type: string
+                      total_hours:
+                        type: number
+                        format: float
+                      products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            product_id:
+                              type: integer
+                            product_name:
+                              type: string
+                            hours:
+                              type: number
+                              format: float
+                            percent:
+                              type: number
+                              format: float
+                      features:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            feature_id:
+                              type: integer
+                            feature_name:
+                              type: string
+                            hours:
+                              type: number
+                              format: float
+                            percent:
+                              type: number
+                              format: float
+                            description:
+                              type: string
+        '400':
+          description: Bad request
+        '403':
+          description: Permission denied
+
+  /products/:
+    get:
+      tags:
+        - Entities
+      summary: List products
+      description: Get all products
+      operationId: listProducts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                          example: "Academy"
+
+  /features/:
+    get:
+      tags:
+        - Entities
+      summary: List features
+      description: Get features filtered by product
+      operationId: listFeatures
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: product_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: List of features
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        product_id:
+                          type: integer
+                        product_name:
+                          type: string
+                        description:
+                          type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/token/
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        error_code:
+          type: string
+        errors:
+          type: object
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+        message:
+          type: string
+
