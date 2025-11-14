@@ -49,3 +49,40 @@ class ContributionRecord(models.Model):
 
     def __str__(self):
         return f"{self.employee.employee_code} - {self.product.name} - {self.contribution_month}"
+
+
+class PodLeadAllocation(models.Model):
+    """PodLeadAllocation model for storing Pod Lead allocation percentages."""
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('SUBMITTED', 'Submitted'),
+        ('PROCESSED', 'Processed'),
+    ]
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='allocations')
+    pod_lead = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='allocated_employees')
+    contribution_month = models.DateField()
+    product = models.CharField(max_length=255, blank=True, null=True)
+    product_description = models.TextField(blank=True, null=True)
+    academy_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0'))])
+    intensive_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0'))])
+    niat_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0'))])
+    features_text = models.TextField(blank=True, null=True)
+    is_verified_description = models.BooleanField(default=False)
+    baseline_hours = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal('160.00'), validators=[MinValueValidator(Decimal('0'))])
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'pod_lead_allocations'
+        ordering = ['-contribution_month', 'employee']
+        unique_together = [['employee', 'contribution_month', 'product']]
+        indexes = [
+            models.Index(fields=['pod_lead', 'contribution_month'], name='idx_alloc_pod_lead_month'),
+            models.Index(fields=['employee', 'contribution_month'], name='idx_alloc_emp_month'),
+            models.Index(fields=['status', 'contribution_month'], name='idx_alloc_status_month'),
+        ]
+
+    def __str__(self):
+        return f"{self.employee.employee_code} - {self.contribution_month} - {self.status}"

@@ -190,3 +190,27 @@ class EmployeeMetricsDTO:
     products: List[ProductBreakdownDTO]
     features: List[FeatureBreakdownDTO]
 
+
+@dataclass
+class PodLeadAllocationDTO:
+    """Pod Lead Allocation Data Transfer Object."""
+    id: int
+    employee_id: int
+    pod_lead_id: int
+    contribution_month: date
+    academy_percent: Decimal
+    intensive_percent: Decimal
+    niat_percent: Decimal
+    product: Optional[str] = None
+    product_description: Optional[str] = None
+    features_text: Optional[str] = None
+    is_verified_description: bool = False
+    baseline_hours: Decimal = Decimal('160.00')
+    status: str = 'PENDING'
+    employee_code: Optional[str] = None
+    employee_name: Optional[str] = None
+    pod_lead_code: Optional[str] = None
+    pod_lead_name: Optional[str] = None
+    created_at: Optional[date] = None
+    updated_at: Optional[date] = None
+

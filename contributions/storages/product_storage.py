@@ -29,6 +29,20 @@ def get_or_create_product(name: str) -> ProductDTO:
     )
 
 
+def get_product_by_name(name: str) -> ProductDTO:
+    """Get product by name."""
+    try:
+        product = Product.objects.get(name=name)
+        return ProductDTO(
+            id=product.id,
+            name=product.name,
+            created_at=product.created_at,
+            updated_at=product.updated_at,
+        )
+    except Product.DoesNotExist:
+        raise EntityNotFoundException(f"Product with name '{name}' not found")
+
+
 def list_products() -> list[ProductDTO]:
     """List all products."""
     products = Product.objects.all().order_by('name')

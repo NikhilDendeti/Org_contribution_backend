@@ -274,18 +274,51 @@ def calculate_product_metrics(product_id: int, month: date) -> Dict:
 
 def calculate_department_metrics(department_id: int, month: date) -> DepartmentMetricsDTO:
     """Calculate department-level metrics."""
+    # Ensure month is first day of month for consistent querying
+    if month.day != 1:
+        month = date(month.year, month.month, 1)
+    
     total_hours = contribution_storage.get_total_hours_by_department(department_id, month)
     
-    # Get pod breakdowns with product distribution
+    # Get pods with their total hours aggregated - only pods with actual contributions
+    # This ensures we only get pods that exist in the data for this month
+    # Use exact date match - data should be stored as first-of-month dates
     pod_aggregates = ContributionRecord.objects.filter(
         department_id=department_id,
-        contribution_month=month
-    ).values('pod_id', 'pod__name').distinct()
+        contribution_month=month,
+        pod_id__isnull=False
+    ).select_related('pod').values(
+        'pod_id', 
+        'pod__name'
+    ).annotate(
+        total_hours=Sum('effort_hours')
+    ).filter(
+        total_hours__gt=0  # Only include pods with non-zero hours
+    ).order_by('-total_hours')
     
+    # Get pod names mapping
+    from contributions.storages import pod_storage
     pods = []
+    seen_pod_ids = set()  # Track processed pods to prevent duplicates
+    
     for pod_agg in pod_aggregates:
         pod_id = pod_agg['pod_id']
+        
+        # Skip if already processed (defensive check)
+        if pod_id in seen_pod_ids:
+            continue
+        seen_pod_ids.add(pod_id)
+        
+        # Get pod name from aggregate or storage
         pod_name = pod_agg['pod__name']
+        if not pod_name:
+            try:
+                pod = pod_storage.get_pod_by_id(pod_id)
+                pod_name = pod.name
+            except:
+                pod_name = f"Pod {pod_id}"
+        
+        pod_total_hours = pod_agg['total_hours'] or Decimal('0')
         
         # Get product breakdown for this pod
         product_aggregates = ContributionRecord.objects.filter(
@@ -295,8 +328,6 @@ def calculate_department_metrics(department_id: int, month: date) -> DepartmentM
         ).values('product_id', 'product__name').annotate(
             hours=Sum('effort_hours')
         ).order_by('-hours')
-        
-        pod_total_hours = contribution_storage.get_total_hours_by_pod(pod_id, month)
         
         products = []
         for prod_agg in product_aggregates:
@@ -365,6 +396,10 @@ def calculate_department_metrics(department_id: int, month: date) -> DepartmentM
 
 def calculate_pod_metrics(pod_id: int, month: date) -> PodMetricsDTO:
     """Calculate pod-level metrics."""
+    # Ensure month is first day of month for consistent querying
+    if month.day != 1:
+        month = date(month.year, month.month, 1)
+    
     total_hours = contribution_storage.get_total_hours_by_pod(pod_id, month)
     
     # Group by product
@@ -383,38 +418,35 @@ def calculate_pod_metrics(pod_id: int, month: date) -> PodMetricsDTO:
             'hours': agg['hours'] or Decimal('0'),
         })
     
-    products_with_percent = calculate_percentages(products, total_hours)
+    # Calculate percentages only if there are hours
+    if total_hours > 0:
+        products_with_percent = calculate_percentages(products, total_hours)
+    else:
+        products_with_percent = []
     
-    # Group by employee
-    employee_aggregates = ContributionRecord.objects.filter(
-        pod_id=pod_id,
-        contribution_month=month
-    ).values('employee_id', 'employee__employee_code', 'employee__name').annotate(
-        hours=Sum('effort_hours')
-    ).order_by('-hours')
+    # Get ALL employees in the pod (from Employee table, not just those with contributions)
+    # This ensures we show employees from the uploaded Tech subsheet even if they have no data for this month
+    from contributions.storages import employee_storage
+    pod_employees = employee_storage.list_employees_by_pod(pod_id)
     
-    employees = []
-    for agg in employee_aggregates:
-        employees.append({
-            'employee_id': agg['employee_id'],
-            'employee_code': agg['employee__employee_code'],
-            'employee_name': agg['employee__name'],
-            'hours': agg['hours'] or Decimal('0'),
-        })
-    
-    employees_with_percent = calculate_percentages(employees, total_hours)
-    
-    # Get employee product breakdowns
+    # Get employee product breakdowns - show all employees, even with 0 hours
     employee_breakdowns = []
-    for emp_agg in employee_aggregates:
-        emp_id = emp_agg['employee_id']
-        emp_total = contribution_storage.get_total_hours_by_employee(emp_id, month)
+    for emp_dto in pod_employees:
+        emp_id = emp_dto.id
         
+        # Get total hours for this employee in this pod for this month
+        emp_total = ContributionRecord.objects.filter(
+            pod_id=pod_id,
+            employee_id=emp_id,
+            contribution_month=month
+        ).aggregate(total=Sum('effort_hours'))['total'] or Decimal('0')
+        
+        # Get product breakdown for this employee in this pod
         emp_product_aggregates = ContributionRecord.objects.filter(
             pod_id=pod_id,
             employee_id=emp_id,
             contribution_month=month
-        ).values('product_id', 'product__name').annotate(
+        ).select_related('product').values('product_id', 'product__name').annotate(
             hours=Sum('effort_hours')
         ).order_by('-hours')
         
@@ -426,12 +458,17 @@ def calculate_pod_metrics(pod_id: int, month: date) -> PodMetricsDTO:
                 'hours': prod_agg['hours'] or Decimal('0'),
             })
         
-        emp_products_with_percent = calculate_percentages(emp_products, emp_total)
+        # Calculate percentages for employee products
+        if emp_total > 0:
+            emp_products_with_percent = calculate_percentages(emp_products, emp_total)
+        else:
+            # If employee has no hours, show empty products list
+            emp_products_with_percent = []
         
         employee_breakdowns.append(EmployeeBreakdownDTO(
             employee_id=emp_id,
-            employee_code=emp_agg['employee__employee_code'],
-            employee_name=emp_agg['employee__name'],
+            employee_code=emp_dto.employee_code,
+            employee_name=emp_dto.name,
             total_hours=emp_total,
             products=[
                 ProductBreakdownDTO(
@@ -443,6 +480,9 @@ def calculate_pod_metrics(pod_id: int, month: date) -> PodMetricsDTO:
                 for item in emp_products_with_percent
             ],
         ))
+    
+    # Sort employees by total hours descending (employees with hours first)
+    employee_breakdowns.sort(key=lambda e: e.total_hours, reverse=True)
     
     # Get pod name
     from contributions.storages import pod_storage
@@ -468,13 +508,17 @@ def calculate_pod_metrics(pod_id: int, month: date) -> PodMetricsDTO:
 
 def calculate_employee_metrics(employee_id: int, month: date) -> EmployeeMetricsDTO:
     """Calculate employee-level metrics."""
+    # Ensure month is first day of month for consistent querying
+    if month.day != 1:
+        month = date(month.year, month.month, 1)
+    
     total_hours = contribution_storage.get_total_hours_by_employee(employee_id, month)
     
     # Group by product
     product_aggregates = ContributionRecord.objects.filter(
         employee_id=employee_id,
         contribution_month=month
-    ).values('product_id', 'product__name').annotate(
+    ).select_related('product').values('product_id', 'product__name').annotate(
         hours=Sum('effort_hours')
     ).order_by('-hours')
     
@@ -486,13 +530,17 @@ def calculate_employee_metrics(employee_id: int, month: date) -> EmployeeMetrics
             'hours': agg['hours'] or Decimal('0'),
         })
     
-    products_with_percent = calculate_percentages(products, total_hours)
+    # Calculate percentages only if there are hours
+    if total_hours > 0:
+        products_with_percent = calculate_percentages(products, total_hours)
+    else:
+        products_with_percent = []
     
     # Group by feature
     feature_aggregates = ContributionRecord.objects.filter(
         employee_id=employee_id,
         contribution_month=month
-    ).values('feature_id', 'feature__name', 'description').annotate(
+    ).select_related('feature').values('feature_id', 'feature__name', 'description').annotate(
         hours=Sum('effort_hours')
     ).order_by('-hours')
     
@@ -505,7 +553,11 @@ def calculate_employee_metrics(employee_id: int, month: date) -> EmployeeMetrics
             'description': agg.get('description'),
         })
     
-    features_with_percent = calculate_percentages(features, total_hours)
+    # Calculate percentages only if there are hours
+    if total_hours > 0:
+        features_with_percent = calculate_percentages(features, total_hours)
+    else:
+        features_with_percent = []
     
     # Get employee info
     from contributions.storages import employee_storage

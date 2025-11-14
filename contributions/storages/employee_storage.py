@@ -52,6 +52,7 @@ def get_or_create_employee(
     email: str,
     department_id: int = None,
     pod_id: int = None,
+    pod_head_id: int = None,
     role: str = 'EMPLOYEE'
 ) -> EmployeeDTO:
     """Get or create an employee."""
@@ -62,6 +63,7 @@ def get_or_create_employee(
             'email': email,
             'department_id': department_id,
             'pod_id': pod_id,
+            'pod_head_id': pod_head_id,
             'role': role,
         }
     )
@@ -73,6 +75,8 @@ def get_or_create_employee(
             employee.department_id = department_id
         if pod_id:
             employee.pod_id = pod_id
+        if pod_head_id is not None:
+            employee.pod_head_id = pod_head_id
         employee.role = role
         employee.save()
     

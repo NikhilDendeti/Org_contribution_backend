@@ -106,7 +106,8 @@ python manage.py load_default_csv
 ```
 
 This will:
-- Find the most recent CSV file in `media/uploads/`
+- Find `updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx` in project root
+- Or find the most recent CSV/Excel file in `media/uploads/`
 - Load all contribution data from it
 - Create employees, departments, pods, products, and features as needed
 
@@ -121,7 +122,7 @@ Example:
 python manage.py load_default_csv
 
 # Load specific file
-python manage.py load_default_csv --file 20251113_100953_675864_organization_contributions_2025-10.csv
+python manage.py load_default_csv --file updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx
 
 # Force reload
 python manage.py load_default_csv --force
@@ -161,7 +162,7 @@ curl -X GET "http://localhost:8000/api/dashboards/org/?month=2025-10" \
 ```bash
 curl -X POST http://localhost:8000/api/uploads/csv/ \
   -H "Authorization: Bearer <access_token>" \
-  -F "file=@organization_contributions_2025-10.xlsx"
+  -F "file=@updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx"
 ```
 
 ## Percentage Calculation

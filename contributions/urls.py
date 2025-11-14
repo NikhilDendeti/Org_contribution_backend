@@ -1,7 +1,10 @@
 """URL configuration for contributions app."""
 from django.urls import path
 from contributions.views import (
-    upload_views, dashboard_views, entity_views, raw_file_views, auth_views, user_views
+    upload_views, dashboard_views, entity_views, raw_file_views, auth_views, user_views,
+    employee_master_views, feature_upload_views, pod_lead_allocation_views,
+    allocation_processing_views, sheet_distribution_views, automation_views,
+    final_master_list_views
 )
 
 app_name = 'contributions'
@@ -29,5 +32,24 @@ urlpatterns = [
     # Entity endpoints
     path('products/', entity_views.ProductListView.as_view(), name='list_products'),
     path('features/', entity_views.FeatureListView.as_view(), name='list_features'),
+    
+    # Admin endpoints
+    path('admin/employees/import/', employee_master_views.ImportEmployeeMasterView.as_view(), name='import_employee_master'),
+    path('admin/features/upload/', feature_upload_views.UploadFeatureCSVView.as_view(), name='upload_feature_csv'),
+    path('admin/sheets/generate-all/', sheet_distribution_views.GenerateAllPodSheetsView.as_view(), name='generate_all_sheets'),
+    path('admin/allocations/<int:pod_id>/process/', allocation_processing_views.ProcessPodAllocationsView.as_view(), name='process_allocations'),
+    
+    # Pod Lead allocation endpoints
+    path('pod-leads/<int:pod_id>/allocation-sheet/', pod_lead_allocation_views.GetPodAllocationSheetView.as_view(), name='get_allocation_sheet'),
+    path('pod-leads/<int:pod_id>/allocation-sheet/download/', pod_lead_allocation_views.DownloadPodAllocationSheetView.as_view(), name='download_allocation_sheet'),
+    path('pod-leads/<int:pod_id>/allocations/', pod_lead_allocation_views.GetPodAllocationsView.as_view(), name='get_pod_allocations'),
+    path('pod-leads/<int:pod_id>/allocations/submit/', pod_lead_allocation_views.SubmitPodAllocationView.as_view(), name='submit_allocations'),
+    
+    # Automation endpoints
+    path('automation/upload-initial-xlsx/', automation_views.UploadInitialXLSXView.as_view(), name='upload_initial_xlsx'),
+    
+    # Final master list endpoints
+    path('admin/final-master-list/generate/', final_master_list_views.GenerateFinalMasterListView.as_view(), name='generate_final_master_list'),
+    path('admin/final-master-list/', final_master_list_views.GetFinalMasterListView.as_view(), name='get_final_master_list'),
 ]
 

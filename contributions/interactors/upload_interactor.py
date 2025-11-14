@@ -42,10 +42,51 @@ class UploadContributionFileInteractor:
             with open(full_path, 'rb') as f:
                 checksum = hashlib.md5(f.read()).hexdigest()
             file_name = full_path.name
+            
+            # Check for duplicate file before processing
+            existing_file = raw_file_storage.get_raw_file_by_checksum(checksum)
+            if existing_file:
+                from contributions.exceptions import DuplicateUploadException
+                raise DuplicateUploadException(
+                    f"File with same content already exists: {existing_file.file_name} "
+                    f"(uploaded at {existing_file.uploaded_at}). Use existing file ID: {existing_file.id}"
+                )
         else:
-            # Save uploaded file
-            storage_path, file_size, checksum = file_storage_service.save_uploaded_file(self.file)
+            # Read file content first to calculate checksum before saving
+            file_content = b''
+            if hasattr(self.file, 'read'):
+                self.file.seek(0)
+                file_content = self.file.read()
+                self.file.seek(0)
+            elif hasattr(self.file, 'chunks'):
+                for chunk in self.file.chunks():
+                    file_content += chunk
+            
+            # Calculate checksum from content
+            import hashlib
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_file.write(file_content)
+                tmp_path = Path(tmp_file.name)
+                checksum = hashlib.md5(file_content).hexdigest()
+                tmp_path.unlink()
+            
+            # Check for duplicate BEFORE saving
+            existing_file = raw_file_storage.get_raw_file_by_checksum(checksum)
+            if existing_file:
+                from contributions.exceptions import DuplicateUploadException
+                raise DuplicateUploadException(
+                    f"File with same content already exists: {existing_file.file_name} "
+                    f"(uploaded at {existing_file.uploaded_at}). Use existing file ID: {existing_file.id}"
+                )
+            
+            # Save uploaded file (duplicate check already done)
+            storage_path, file_size, checksum = file_storage_service.save_uploaded_file(
+                self.file, 
+                check_duplicate=False  # Already checked above
+            )
             full_path = Path(settings.MEDIA_ROOT) / storage_path
+            
             # Get file name for raw_file record
             file_name = getattr(self.file, 'name', 'uploaded_file.xlsx')
             if not file_name:
@@ -58,13 +99,14 @@ class UploadContributionFileInteractor:
             # All rows had errors
             raise ValidationException("All rows failed validation", errors={'rows': errors})
         
-        # Create raw file record
+        # Create raw file record (duplicate check already done above)
         raw_file = raw_file_storage.create_raw_file(
             file_name=file_name,
             storage_path=storage_path,
             uploaded_by_id=self.uploaded_by_id,
             file_size=file_size,
             checksum=checksum,
+            check_duplicate=False,  # Already checked above
         )
         
         # Process rows and create contribution records

@@ -48,12 +48,12 @@ def parse_excel_file(file_path: str) -> Tuple[List[Dict], List[Dict]]:
                 except:
                     df = pd.read_csv(file_path, encoding='cp1252')
             
-            # Validate headers
+            # Validate headers - feature_name, reported_by, and source are optional
             required_columns = [
                 'employee_code', 'employee_name', 'email', 'department', 'pod',
-                'product', 'feature_name', 'contribution_month', 'effort_hours',
-                'description', 'reported_by', 'source'
+                'product', 'contribution_month', 'effort_hours'
             ]
+            optional_columns = ['feature_name', 'description', 'reported_by', 'source']
             
             # Normalize column names (case-insensitive, strip whitespace)
             df.columns = [col.strip().lower() for col in df.columns]
@@ -91,12 +91,12 @@ def parse_excel_file(file_path: str) -> Tuple[List[Dict], List[Dict]]:
             for sheet_name in sheets_to_process:
                 df = pd.read_excel(excel_file, sheet_name=sheet_name)
                 
-                # Validate headers
+                # Validate headers - feature_name, reported_by, and source are optional
                 required_columns = [
                     'employee_code', 'employee_name', 'email', 'department', 'pod',
-                    'product', 'feature_name', 'contribution_month', 'effort_hours',
-                    'description', 'reported_by', 'source'
+                    'product', 'contribution_month', 'effort_hours'
                 ]
+                optional_columns = ['feature_name', 'description', 'reported_by', 'source']
                 
                 # Normalize column names (case-insensitive, strip whitespace)
                 df.columns = [col.strip().lower() for col in df.columns]

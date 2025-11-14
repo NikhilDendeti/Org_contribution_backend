@@ -7,9 +7,13 @@ from django.core.files.base import ContentFile
 import hashlib
 
 
-def save_uploaded_file(file) -> tuple[str, int, str]:
+def save_uploaded_file(file, check_duplicate: bool = True) -> tuple[str, int, str]:
     """
     Save uploaded file to media directory.
+    
+    Args:
+        file: File object to save
+        check_duplicate: If True, check for existing file with same checksum before saving
     
     Returns:
         Tuple of (storage_path, file_size, checksum)
@@ -19,6 +23,32 @@ def save_uploaded_file(file) -> tuple[str, int, str]:
     if not file_name:
         # Try to get from request if available
         file_name = 'uploaded_file.xlsx'
+    
+    # Read file content first to calculate checksum
+    file_content = b''
+    if hasattr(file, 'read'):
+        file.seek(0)  # Reset file pointer
+        file_content = file.read()
+        file.seek(0)  # Reset again for later use
+    elif hasattr(file, 'chunks'):
+        for chunk in file.chunks():
+            file_content += chunk
+    
+    # Calculate checksum from content (before saving)
+    import tempfile
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        tmp_file.write(file_content)
+        tmp_path = Path(tmp_file.name)
+        checksum = calculate_checksum(tmp_path)
+        tmp_path.unlink()  # Delete temp file
+    
+    # Check for duplicate if enabled
+    if check_duplicate:
+        from contributions.storages import raw_file_storage
+        existing_file = raw_file_storage.get_raw_file_by_checksum(checksum)
+        if existing_file:
+            # Return existing file path instead of creating duplicate
+            return existing_file.storage_path, existing_file.file_size, existing_file.checksum
     
     # Generate unique filename
     filename = generate_unique_filename(file_name)
@@ -30,23 +60,12 @@ def save_uploaded_file(file) -> tuple[str, int, str]:
     # Save file
     file_path = upload_dir / filename
     
-    # Read file content
-    file_content = b''
-    if hasattr(file, 'read'):
-        file.seek(0)  # Reset file pointer
-        file_content = file.read()
-        file.seek(0)  # Reset again for later use
-    elif hasattr(file, 'chunks'):
-        for chunk in file.chunks():
-            file_content += chunk
-    
     # Write to disk
     with open(file_path, 'wb') as f:
         f.write(file_content)
     
-    # Calculate file size and checksum
+    # Calculate file size
     file_size = file_path.stat().st_size
-    checksum = calculate_checksum(file_path)
     
     # Return relative path from MEDIA_ROOT
     relative_path = f"uploads/{filename}"

@@ -66,18 +66,18 @@ source venv/bin/activate 2>/dev/null || true
 python manage.py seed_products > /dev/null 2>&1
 echo -e "${GREEN}✓ Products seeded${NC}"
 
-# Step 3: Upload CSV file
+# Step 3: Upload Excel file
 echo -e "\n${BLUE}Step 3: File Upload${NC}"
-CSV_FILE="/home/nikhil/Projects/Org_contributions_backend/organization_contributions_2025-10.csv"
-if [ ! -f "$CSV_FILE" ]; then
-  echo -e "${RED}✗ CSV file not found: $CSV_FILE${NC}"
+EXCEL_FILE="/home/nikhil/Projects/Org_contributions_backend/updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx"
+if [ ! -f "$EXCEL_FILE" ]; then
+  echo -e "${RED}✗ Excel file not found: $EXCEL_FILE${NC}"
   exit 1
 fi
 
-echo -e "${YELLOW}Uploading CSV file...${NC}"
+echo -e "${YELLOW}Uploading Excel file...${NC}"
 UPLOAD_RESPONSE=$(curl -s -X POST "$BASE_URL/uploads/csv/" \
   -H "Authorization: Bearer $HOD_TOKEN" \
-  -F "file=@$CSV_FILE")
+  -F "file=@$EXCEL_FILE")
 
 RAW_FILE_ID=$(echo "$UPLOAD_RESPONSE" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d.get('data', {}).get('raw_file_id', ''))" 2>/dev/null)
 

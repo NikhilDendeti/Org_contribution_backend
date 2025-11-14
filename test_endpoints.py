@@ -116,12 +116,9 @@ def main():
     
     # Try CSV first, then Excel
     possible_paths = [
-        base_dir / "organization_contributions_2025-10.csv",
-        base_dir / "organization_contributions_2025-10.xlsx",
-        script_dir / "organization_contributions_2025-10.csv",
-        script_dir / "organization_contributions_2025-10.xlsx",
-        Path("organization_contributions_2025-10.csv"),
-        Path("organization_contributions_2025-10.xlsx"),
+        base_dir / "updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx",
+        script_dir / "updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx",
+        Path("updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx"),
     ]
     
     excel_file = None

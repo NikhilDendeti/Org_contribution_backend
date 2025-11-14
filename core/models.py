@@ -1,4 +1,6 @@
 from django.db import models
+from django.core.validators import MinValueValidator
+from decimal import Decimal
 
 
 class Department(models.Model):
@@ -70,6 +72,7 @@ class Employee(models.Model):
         ('POD_LEAD', 'Pod Lead'),
         ('EMPLOYEE', 'Employee'),
         ('ADMIN', 'Admin'),
+        ('AUTOMATION', 'Automation'),
     ]
 
     employee_code = models.CharField(max_length=100, unique=True, db_index=True)
@@ -77,7 +80,9 @@ class Employee(models.Model):
     email = models.EmailField()
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='employees')
     pod = models.ForeignKey(Pod, on_delete=models.SET_NULL, null=True, blank=True, related_name='employees')
+    pod_head = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='direct_reports')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='EMPLOYEE')
+    monthly_baseline_hours = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal('160.00'), validators=[MinValueValidator(Decimal('0'))])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

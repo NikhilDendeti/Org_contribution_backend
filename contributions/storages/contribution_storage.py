@@ -8,6 +8,44 @@ from .storage_dto import ContributionRecordDTO
 from ..exceptions import EntityNotFoundException
 
 
+def create_contribution_record(
+    employee_id: int,
+    department_id: int,
+    pod_id: int,
+    product_id: int,
+    contribution_month: date,
+    effort_hours: Decimal,
+    source_file_id: int,
+    feature_id: int = None,
+    description: str = None
+) -> ContributionRecordDTO:
+    """Create a single contribution record."""
+    record = ContributionRecord.objects.create(
+        employee_id=employee_id,
+        department_id=department_id,
+        pod_id=pod_id,
+        product_id=product_id,
+        feature_id=feature_id,
+        contribution_month=contribution_month,
+        effort_hours=effort_hours,
+        description=description,
+        source_file_id=source_file_id,
+    )
+    record.refresh_from_db()
+    return ContributionRecordDTO(
+        id=record.id,
+        employee_id=record.employee_id,
+        department_id=record.department_id,
+        pod_id=record.pod_id,
+        product_id=record.product_id,
+        feature_id=record.feature_id,
+        contribution_month=record.contribution_month,
+        effort_hours=record.effort_hours,
+        description=record.description,
+        source_file_id=record.source_file_id,
+    )
+
+
 def bulk_create_contributions(records: list[ContributionRecordDTO], source_file_id: int) -> int:
     """Bulk create contribution records."""
     contribution_records = []

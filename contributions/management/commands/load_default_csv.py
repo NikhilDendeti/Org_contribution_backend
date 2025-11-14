@@ -8,7 +8,7 @@ from contributions.exceptions import DomainException
 
 
 class Command(BaseCommand):
-    help = 'Load the default CSV/Excel file (organization_contributions_2025-10.xlsx)'
+    help = 'Load the default CSV/Excel file (updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx)'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -47,8 +47,8 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f'File not found: {data_file}'))
                 return
         else:
-            # First try to find organization_contributions_2025-10.xlsx in project root
-            excel_file = project_root / 'organization_contributions_2025-10.xlsx'
+            # First try to find updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx in project root
+            excel_file = project_root / 'updatedorganization_contributions_2025-10_all_sheets_normalized.xlsx'
             if excel_file.exists():
                 data_file = excel_file
                 self.stdout.write(f'Using file: {excel_file.name}')

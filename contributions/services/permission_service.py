@@ -81,3 +81,14 @@ def can_upload_file(employee_id: int) -> bool:
     except EntityNotFoundException:
         raise EntityNotFoundException(f"Employee with id {employee_id} not found")
 
+
+def check_automation_permission(employee_id: int) -> bool:
+    """Check if employee has Automation role."""
+    try:
+        employee = employee_storage.get_employee_by_id(employee_id)
+        if employee.role != 'AUTOMATION':
+            raise PermissionDeniedException("Automation access required")
+        return True
+    except EntityNotFoundException:
+        raise EntityNotFoundException(f"Employee with id {employee_id} not found")
+
