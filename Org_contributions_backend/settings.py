@@ -50,14 +50,17 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for static files
+    'corsheaders.middleware.CorsMiddleware',  # CORS must be before CommonMiddleware to handle OPTIONS
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Disable trailing slash redirects for API endpoints (prevents CORS preflight redirect issues)
+APPEND_SLASH = False
 
 ROOT_URLCONF = 'Org_contributions_backend.urls'
 
@@ -216,8 +219,10 @@ LOGGING = {
 }
 
 # Security settings for production
+# Note: Disable SECURE_SSL_REDIRECT as Railway handles HTTPS at proxy level
+# Redirects break CORS preflight requests
 if not DEBUG:
-    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+    SECURE_SSL_REDIRECT = False  # Railway handles HTTPS, don't redirect
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
