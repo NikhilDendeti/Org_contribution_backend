@@ -14,14 +14,6 @@ from pathlib import Path
 from decouple import config
 import os
 
-# Configure PyMySQL for MySQL (must be done BEFORE Django imports MySQL backend)
-# This allows Django to use PyMySQL as mysqlclient
-try:
-    import pymysql
-    pymysql.install_as_MySQLdb()
-except ImportError:
-    pass  # PyMySQL not installed, will use mysqlclient if available
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

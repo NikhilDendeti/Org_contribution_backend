@@ -1,3 +1,3 @@
 web: gunicorn Org_contributions_backend.wsgi:application --bind 0.0.0.0:$PORT
-release: python manage.py migrate && python manage.py seed_products
+release: python manage.py migrate --noinput || true && python manage.py seed_products || true
 
