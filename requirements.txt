@@ -7,7 +7,13 @@ python-decouple==3.8
 django-cors-headers==4.5.0
 
 # Production dependencies
-psycopg2-binary==2.9.9
+# PostgreSQL adapter (optional, if using PostgreSQL)
+# psycopg2-binary==2.9.9
+
+# MySQL adapter (for MySQL/MariaDB)
+PyMySQL==1.1.0
+
+# Database URL parser (supports PostgreSQL, MySQL, SQLite, etc.)
 dj-database-url==2.1.0
 gunicorn==21.2.0
 whitenoise==6.6.0

@@ -14,6 +14,14 @@ from pathlib import Path
 from decouple import config
 import os
 
+# Configure PyMySQL for MySQL (must be done BEFORE Django imports MySQL backend)
+# This allows Django to use PyMySQL as mysqlclient
+try:
+    import pymysql
+    pymysql.install_as_MySQLdb()
+except ImportError:
+    pass  # PyMySQL not installed, will use mysqlclient if available
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -81,12 +89,13 @@ WSGI_APPLICATION = 'Org_contributions_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Use PostgreSQL if DATABASE_URL is set (Railway provides this), otherwise use SQLite for local development
+# Use MySQL/PostgreSQL if DATABASE_URL is set (Railway provides this), otherwise use SQLite for local development
 DATABASE_URL = config('DATABASE_URL', default=None)
 
 if DATABASE_URL:
-    # Parse DATABASE_URL (Railway format: postgresql://user:password@host:port/dbname)
+    # Parse DATABASE_URL (Railway format: mysql:// or postgresql://user:password@host:port/dbname)
     import dj_database_url
+    
     DATABASES = {
         'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
